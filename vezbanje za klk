@@ -1,0 +1,12 @@
+Kreirati nov kolokvijum pod nazivom kolokvijum2 .Glavnu aktivnost nazvati Main ACtivity
+    Unutar Main Activity postaviti dva checkbox-a,dva button-a i dva text view-a jedno ispod drugoga.Prvi button ima tekst Snimi a drugi sascuvaj.
+
+Unutar prvog text view-a prikazati vrednosti akcelerometra
+
+Klikom na prvi button pokrece e snimanje zvuka. ,a klikom na drugi se zaustavlja i snimljeni zvuk se cuva u cache direktorijumu aplikacije
+
+Kreirati model u bazi za korisnike sajta : https://app.beeceptor.com/mock-server/dummy-json i podesiti Retrofit za get zahtev.
+Klikom na prvi Checkbox dobaviti sve korisnike i sacuvati ih u bai koriscenjem Content-Providera.
+
+Kada se drugi Checkbox cekira prikazati email desetog korisnika iz baze u drugi TextView a kada se odcekira prikazati ocitavanje proximiti senzora.kada se predje proizvoljno odredjen prag za brzinu
+poslati Toast poruku "Daleko"
