@@ -1,0 +1,37 @@
+Podsetnik: kako iz teksta zadatka prepoznas i imenujes klase
+
+Ovo je postupak koji prolazis kroz glavu za SVAKI zadatak, pre nego sto pocnes da kucas kod.
+
+KORAK 1 - Nadji entitet (Model). Procitaj zadatak i nadji glavnu imenicu koja se ponavlja - ono sto se "unosi", "cuva", "prikazuje" ili "salje". Ako pise "unesi knjigu sa naslovom, autorom i cenom" - entitet je Knjiga, a naslov/autor/cena su polja modela. Ime klase = ta imenica, jednina, veliko pocetno slovo (Knjiga, Automobil, Predmet, Narudzbina...). Ne prevodi na engleski ako je zadatak na srpskom - drzi se istog jezika kroz ceo projekat.
+
+KORAK 2 - Prepoznaj odakle dolaze podaci (ovo ti govori koje dodatne klase pravis):
+
+
+Pominje se "server", "API", "URL", "JSON", "REST", "endpoint" -> treba Retrofit -> pravis interfejs [Naziv]Service ili ApiService.
+Pominje se "baza", "sacuvaj lokalno", "SQLite" (bez pominjanja Room-a) -> pravis DatabaseHelper (extends SQLiteOpenHelper).
+Pominje se "Room", "@Entity", "@Dao" -> pravis Entity klasu + [Naziv]Dao interfejs + Database klasu.
+Pominje se "kamera", "slikaj", "fotografija" -> dodajes camera intent kod + FileProvider (kao u Primeru 3).
+Pominje se "zapamti podesavanje", "ostane i posle gasenja aplikacije" za JEDNU vrednost (ne listu) -> SharedPreferences (jednostavnije od baze, nema posebnu klasu, samo par linija u MainActivity).
+
+
+KORAK 3 - Prepoznaj kako se prikazuju podaci (ovo ti govori da li ti treba Adapter):
+
+
+Pominje se "lista", "prikazi sve", "spisak" -> treba ti Adapter -> ime klase [Naziv]Adapter (npr. KnjigaAdapter), plus poseban XML za jedan red (item_[naziv].xml).
+Trazi se samo forma za unos, bez prikaza liste -> ne treba ti Adapter, samo EditText/Spinner/itd u MainActivity.
+Trazi se prikaz JEDNOG unosa (ne liste) -> obicni TextView-ovi, bez Adaptera.
+
+
+KORAK 4 - Imenovanje, brzi pregled:
+
+Model - imenica iz zadatka, jednina (Knjiga)
+Retrofit interfejs - ApiService ili [Naziv]Service
+SQLite klasa - DatabaseHelper (ili [Naziv]DatabaseHelper ako ima vise tabela u istom zadatku)
+Adapter - [Naziv]Adapter (KnjigaAdapter)
+Glavni ekran - MainActivity (vec postoji u projektu, ne pravis novi fajl osim ako zadatak trazi vise ekrana)
+
+KORAK 5 - Kako se sve povezuje (isti redosled uvek):
+
+MainActivity poziva ApiService (Retrofit) ili DatabaseHelper (SQLite) da dobije podatke -> dobijeni podaci su List<Model> ili jedan Model -> ako se prikazuje lista, ta lista ide u konstruktor Adaptera -> Adapter puni RecyclerView/ListView na ekranu -> ako se dodaje nov unos, MainActivity cita vrednosti sa forme (EditText.getText() itd), pravi novi Model objekat, i prosledjuje ga DatabaseHelper-u (insert metoda) ili Retrofit pozivu (ako se salje na server).
+
+Kratka provera na kraju citanja zadatka - odgovori sebi na ova pitanja pre nego sto pocnes da kucas: koji je entitet i koja su mu polja, da li podaci dolaze sa servera ili iz lokalne baze, da li se prikazuje lista ili samo forma, da li ima kamere ili posebnih dodataka. Kad znas odgovore na ova cetiri pitanja, znas tacno koje ces klase da napravis i kako se zovu.
