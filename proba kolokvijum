@@ -1,0 +1,15 @@
+Kreirati novi projekat pod nazivom Kolokvijum2.Glavnu aktivnost nazvati MainActivity.
+Unutar MainActivity postaviti dva CheckBo-a,Button i ImageView i dva TextView-a jedno ispod drugog.
+Dugme ima tekst "Slikaj".
+
+Unutar TextViewa-a prikazati lokaciju uredjaja koristeci geografsku sirinu i duzinu.
+        
+Klikom na button pokrece se kamera i korisnik moze da slika fotografiju.Potvrdom snimanja,fotografija
+        se cuva u cache direktorijumu aplikacije i prikazuje u ImageView ispod dugmeta.
+
+Kreirati model u bazi za kontinente saa sajta https://app.beeceptor.com/mock-server/dummy-json i podesiti retrofit za  Get zahtev .
+
+Klikom na prvi checkbox dobavii sve kontinente i u bazi sacuvati sve kontinente ciji broj drzava prelazi trenutno
+   ocitanu magnitudu akcelerometra.     
+        
+        7-ne mora Kada se drugi checkbox cekira 
