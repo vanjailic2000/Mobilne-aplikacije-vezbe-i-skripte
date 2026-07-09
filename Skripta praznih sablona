@@ -1,0 +1,861 @@
+# Primeri za vezbu - Kolokvijum 2
+
+## Napomena
+
+Ovo su radni primeri za ucenje, ne gotova resenja za pravi kolokvijum (taj zadatak ce biti drugaciji). Cilj je da prodjes kroz svaki primer, pejstujes ga u novi Android Studio projekat, pokrenes ga, i razumes sta svaki deo koda radi - da bi na kolokvijumu sama brzo sastavila slicnu strukturu za bilo koji konkretan zadatak.
+
+Paket u primerima je com.example.myapplication - to je paket iz tvog trenutnog projekta, ako praktikujes u novom projektu, promeni ga na svoj.
+
+## Koriscene stvari
+
+Retrofit, Gson, SQLite (SQLiteOpenHelper), Camera Intent + FileProvider, RecyclerView, ListView, SharedPreferences (pomenuto na kraju)
+
+## Zajednicka podesavanja za sva tri primera
+
+Ovo vazi za svaki od tri primera ispod - podesi jednom pre nego sto krenes.
+
+U build.gradle (Module :app), proveri da li ovo tako stoji:
+
+```
+android {
+compileSdk 30
+
+defaultConfig {
+minSdk 21
+targetSdk 30
+}
+}
+```
+
+AndroidManifest.xml treba da ima temu bez naslova i deklarisanu MainActivity ovako (dodacemo jos linija po primeru ispod, ovo je baza):
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+<application
+android:allowBackup="true"
+android:label="@string/app_name"
+android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+<activity
+android:name=".MainActivity"
+android:exported="true">
+<intent-filter>
+<action android:name="android.intent.action.MAIN" />
+<category android:name="android.intent.category.LAUNCHER" />
+</intent-filter>
+</activity>
+</application>
+
+</manifest>
+```
+
+Svaki MainActivity u primerima ispod pocinje sa istim dve linije u onCreate - to sakriva naslov aplikacije:
+
+```
+setContentView(R.layout.activity_main);
+if (getSupportActionBar() != null) getSupportActionBar().hide();
+```
+
+---
+
+## PRIMER 1: Retrofit + RecyclerView lista
+
+Scenario: aplikacija poziva javni API (jsonplaceholder.typicode.com/users), dobija listu korisnika u JSON formatu, i prikazuje ih u listi na ekranu.
+
+STEP 1 - Model klasa. Ovo je obicna klasa cija polja moraju da se poklapaju sa imenima polja u JSON odgovoru sa servera (Retrofit/Gson to automatski mapira po imenu polja):
+
+```
+package com.example.myapplication;
+
+public class Korisnik {
+
+private int id;
+private String name;
+private String email;
+
+public Korisnik() {}
+
+public int getId() { return id; }
+public void setId(int id) { this.id = id; }
+public String getName() { return name; }
+public void setName(String name) { this.name = name; }
+public String getEmail() { return email; }
+public void setEmail(String email) { this.email = email; }
+}
+```
+
+STEP 2 - Retrofit interfejs. Ovo je apstraktan opis poziva ka serveru - metoda getKorisnici() odgovara putanji "users" nadovezanoj na baseUrl koji cemo zadati u MainActivity:
+
+```
+package com.example.myapplication;
+
+import java.util.List;
+import retrofit2.Call;
+import retrofit2.http.GET;
+
+public interface ApiService {
+
+@GET("users")
+Call<List<Korisnik>> getKorisnici();
+}
+```
+
+STEP 3 - Adapter za RecyclerView. Ovo je klasa koja povezuje listu podataka sa prikazom na ekranu - za svaki element liste "napuni" jedan red (item_korisnik.xml) podacima:
+
+```
+package com.example.myapplication;
+
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.TextView;
+import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.RecyclerView;
+import java.util.List;
+
+public class KorisnikAdapter extends RecyclerView.Adapter<KorisnikAdapter.ViewHolder> {
+
+private List<Korisnik> lista;
+
+public KorisnikAdapter(List<Korisnik> lista) {
+this.lista = lista;
+}
+
+@NonNull
+@Override
+public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_korisnik, parent, false);
+return new ViewHolder(view);
+}
+
+@Override
+public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+Korisnik k = lista.get(position);
+holder.tvIme.setText(k.getName());
+holder.tvEmail.setText(k.getEmail());
+}
+
+@Override
+public int getItemCount() {
+return lista.size();
+}
+
+public static class ViewHolder extends RecyclerView.ViewHolder {
+TextView tvIme;
+TextView tvEmail;
+
+public ViewHolder(@NonNull View itemView) {
+super(itemView);
+tvIme = itemView.findViewById(R.id.tvIme);
+tvEmail = itemView.findViewById(R.id.tvEmail);
+}
+}
+}
+```
+
+STEP 4 - MainActivity. Ovde se gradi Retrofit klijent, poziva se server (enqueue = asinhrono, odgovor stize kasnije u onResponse), i rezultat se prosledjuje adapteru:
+
+```
+package com.example.myapplication;
+
+import android.os.Bundle;
+import android.widget.Toast;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import java.util.List;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
+
+public class MainActivity extends AppCompatActivity {
+
+private RecyclerView recyclerView;
+
+@Override
+protected void onCreate(Bundle savedInstanceState) {
+super.onCreate(savedInstanceState);
+setContentView(R.layout.activity_main);
+if (getSupportActionBar() != null) getSupportActionBar().hide();
+
+recyclerView = findViewById(R.id.recyclerView);
+recyclerView.setLayoutManager(new LinearLayoutManager(this));
+
+Retrofit retrofit = new Retrofit.Builder()
+.baseUrl("https://jsonplaceholder.typicode.com/")
+.addConverterFactory(GsonConverterFactory.create())
+.build();
+
+ApiService apiService = retrofit.create(ApiService.class);
+Call<List<Korisnik>> call = apiService.getKorisnici();
+call.enqueue(new Callback<List<Korisnik>>() {
+@Override
+public void onResponse(Call<List<Korisnik>> call, Response<List<Korisnik>> response) {
+if (response.isSuccessful() && response.body() != null) {
+KorisnikAdapter adapter = new KorisnikAdapter(response.body());
+recyclerView.setAdapter(adapter);
+} else {
+Toast.makeText(MainActivity.this, "Greska u odgovoru", Toast.LENGTH_SHORT).show();
+}
+}
+
+@Override
+public void onFailure(Call<List<Korisnik>> call, Throwable t) {
+Toast.makeText(MainActivity.this, "Greska: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+}
+});
+}
+}
+```
+
+STEP 5 - activity_main.xml. RecyclerView se vec sam skroluje, zato ovde NE ide ScrollView oko njega (ScrollView oko RecyclerView-a pravi konflikt skrolovanja) - marginTop 80dp ide direktno na RecyclerView:
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.recyclerview.widget.RecyclerView xmlns:android="http://schemas.android.com/apk/res/android"
+android:id="@+id/recyclerView"
+android:layout_width="match_parent"
+android:layout_height="match_parent"
+android:layout_marginTop="80dp"
+android:padding="8dp" />
+```
+
+STEP 6 - item_korisnik.xml. Ovo je izgled JEDNOG reda liste (dva teksta jedan ispod drugog):
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+android:layout_width="match_parent"
+android:layout_height="wrap_content"
+android:orientation="vertical"
+android:padding="12dp">
+
+<TextView
+android:id="@+id/tvIme"
+android:layout_width="wrap_content"
+android:layout_height="wrap_content"
+android:textSize="16sp"
+android:textStyle="bold" />
+
+<TextView
+android:id="@+id/tvEmail"
+android:layout_width="wrap_content"
+android:layout_height="wrap_content"
+android:textSize="14sp" />
+
+</LinearLayout>
+```
+
+STEP 7 - Dodatak u AndroidManifest.xml. Retrofit zahteva pristup internetu, ova linija ide unutar <manifest> tag-a, iznad <application>:
+
+```
+<uses-permission android:name="android.permission.INTERNET" />
+```
+
+STEP 8 - Dodatak u build.gradle (dependencies blok):
+
+```
+implementation 'com.squareup.retrofit2:retrofit:2.9.0'
+implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
+implementation 'androidx.recyclerview:recyclerview:1.1.0'
+```
+
+Obrati paznju - sta bi se menjalo za drugaciji zadatak: baseUrl i putanja u @GET, imena i broj polja u Korisnik (moraju da se poklapaju sa pravim JSON odgovorom - profesor ce ti reci ili pokazati taj JSON), imena TextView-ova u adapteru i item XML-u.
+
+---
+
+## PRIMER 2: SQLite CRUD forma
+
+Scenario: forma sa dva polja i checkbox-om, dugme "Dodaj" koje upisuje unos u lokalnu bazu, i lista ispod koja prikazuje sve unose iz baze.
+
+STEP 1 - Model klasa. Cetiri polja: id (automatski ga daje baza), naziv, opis, zavrsen (boolean):
+
+```
+package com.example.myapplication;
+
+public class Zadatak {
+
+private int id;
+private String naziv;
+private String opis;
+private boolean zavrsen;
+
+public Zadatak() {}
+
+public Zadatak(String naziv, String opis, boolean zavrsen) {
+this.naziv = naziv;
+this.opis = opis;
+this.zavrsen = zavrsen;
+}
+
+public int getId() { return id; }
+public void setId(int id) { this.id = id; }
+public String getNaziv() { return naziv; }
+public void setNaziv(String naziv) { this.naziv = naziv; }
+public String getOpis() { return opis; }
+public void setOpis(String opis) { this.opis = opis; }
+public boolean isZavrsen() { return zavrsen; }
+public void setZavrsen(boolean zavrsen) { this.zavrsen = zavrsen; }
+}
+```
+
+STEP 2 - DatabaseHelper. Ovo je klasa koja pravi tabelu (onCreate) i sadrzi sve metode za rad sa bazom (insert, citanje svih redova, brisanje, izmena) - nema posebne DAO klase, sve je ovde:
+
+```
+package com.example.myapplication;
+
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
+import java.util.ArrayList;
+import java.util.List;
+
+public class DatabaseHelper extends SQLiteOpenHelper {
+
+private static final String DATABASE_NAME = "mojabaza.db";
+private static final int DATABASE_VERSION = 1;
+private static final String TABLE_ZADACI = "zadaci";
+private static final String COLUMN_ID = "id";
+private static final String COLUMN_NAZIV = "naziv";
+private static final String COLUMN_OPIS = "opis";
+private static final String COLUMN_ZAVRSEN = "zavrsen";
+
+public DatabaseHelper(Context context) {
+super(context, DATABASE_NAME, null, DATABASE_VERSION);
+}
+
+@Override
+public void onCreate(SQLiteDatabase db) {
+String createTable = "CREATE TABLE " + TABLE_ZADACI + " (" +
+COLUMN_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
+COLUMN_NAZIV + " TEXT, " +
+COLUMN_OPIS + " TEXT, " +
+COLUMN_ZAVRSEN + " INTEGER)";
+db.execSQL(createTable);
+}
+
+@Override
+public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+db.execSQL("DROP TABLE IF EXISTS " + TABLE_ZADACI);
+onCreate(db);
+}
+
+public long insertZadatak(Zadatak zadatak) {
+SQLiteDatabase db = this.getWritableDatabase();
+ContentValues values = new ContentValues();
+values.put(COLUMN_NAZIV, zadatak.getNaziv());
+values.put(COLUMN_OPIS, zadatak.getOpis());
+values.put(COLUMN_ZAVRSEN, zadatak.isZavrsen() ? 1 : 0);
+long id = db.insert(TABLE_ZADACI, null, values);
+db.close();
+return id;
+}
+
+public List<Zadatak> getAllZadaci() {
+List<Zadatak> lista = new ArrayList<>();
+SQLiteDatabase db = this.getReadableDatabase();
+Cursor cursor = db.query(TABLE_ZADACI, null, null, null, null, null, null);
+if (cursor.moveToFirst()) {
+do {
+Zadatak z = new Zadatak();
+z.setId(cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_ID)));
+z.setNaziv(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_NAZIV)));
+z.setOpis(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_OPIS)));
+z.setZavrsen(cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_ZAVRSEN)) == 1);
+lista.add(z);
+} while (cursor.moveToNext());
+}
+cursor.close();
+db.close();
+return lista;
+}
+
+public void deleteZadatak(int id) {
+SQLiteDatabase db = this.getWritableDatabase();
+db.delete(TABLE_ZADACI, COLUMN_ID + "=?", new String[]{String.valueOf(id)});
+db.close();
+}
+
+public void updateZadatak(Zadatak zadatak) {
+SQLiteDatabase db = this.getWritableDatabase();
+ContentValues values = new ContentValues();
+values.put(COLUMN_NAZIV, zadatak.getNaziv());
+values.put(COLUMN_OPIS, zadatak.getOpis());
+values.put(COLUMN_ZAVRSEN, zadatak.isZavrsen() ? 1 : 0);
+db.update(TABLE_ZADACI, values, COLUMN_ID + "=?", new String[]{String.valueOf(zadatak.getId())});
+db.close();
+}
+}
+```
+
+STEP 3 - MainActivity. Cita polja sa forme, cuva u bazu preko DatabaseHelper-a, i odmah osvezava listu ispod pozivom osveziListu():
+
+```
+package com.example.myapplication;
+
+import android.os.Bundle;
+import android.view.View;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.EditText;
+import android.widget.ListView;
+import android.widget.Toast;
+import androidx.appcompat.app.AppCompatActivity;
+import java.util.ArrayList;
+import java.util.List;
+
+public class MainActivity extends AppCompatActivity {
+
+private EditText etNaziv, etOpis;
+private CheckBox cbZavrsen;
+private Button btnDodaj;
+private ListView listView;
+private DatabaseHelper dbHelper;
+private ArrayAdapter<String> adapter;
+
+@Override
+protected void onCreate(Bundle savedInstanceState) {
+super.onCreate(savedInstanceState);
+setContentView(R.layout.activity_main);
+if (getSupportActionBar() != null) getSupportActionBar().hide();
+
+etNaziv = findViewById(R.id.etNaziv);
+etOpis = findViewById(R.id.etOpis);
+cbZavrsen = findViewById(R.id.cbZavrsen);
+btnDodaj = findViewById(R.id.btnDodaj);
+listView = findViewById(R.id.listView);
+
+dbHelper = new DatabaseHelper(this);
+adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, new ArrayList<String>());
+listView.setAdapter(adapter);
+
+osveziListu();
+
+btnDodaj.setOnClickListener(new View.OnClickListener() {
+@Override
+public void onClick(View v) {
+String naziv = etNaziv.getText().toString();
+String opis = etOpis.getText().toString();
+boolean zavrsen = cbZavrsen.isChecked();
+
+if (naziv.isEmpty()) {
+Toast.makeText(MainActivity.this, "Unesi naziv", Toast.LENGTH_SHORT).show();
+return;
+}
+
+Zadatak zadatak = new Zadatak(naziv, opis, zavrsen);
+dbHelper.insertZadatak(zadatak);
+
+etNaziv.setText("");
+etOpis.setText("");
+cbZavrsen.setChecked(false);
+
+osveziListu();
+}
+});
+}
+
+private void osveziListu() {
+List<Zadatak> lista = dbHelper.getAllZadaci();
+List<String> prikaz = new ArrayList<>();
+for (Zadatak z : lista) {
+prikaz.add(z.getNaziv() + " - " + (z.isZavrsen() ? "Zavrsen" : "Nije zavrsen"));
+}
+adapter.clear();
+adapter.addAll(prikaz);
+adapter.notifyDataSetChanged();
+}
+}
+```
+
+STEP 4 - activity_main.xml. Ovde JESTE ScrollView (forma sa poljima) - ListView unutar ScrollView-a MORA imati fiksnu visinu (300dp), ne wrap_content, inace se ne prikazuje kako treba:
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+android:layout_width="match_parent"
+android:layout_height="match_parent">
+
+<LinearLayout
+android:layout_width="match_parent"
+android:layout_height="wrap_content"
+android:orientation="vertical"
+android:padding="16dp">
+
+<EditText
+android:id="@+id/etNaziv"
+android:layout_width="match_parent"
+android:layout_height="wrap_content"
+android:layout_marginTop="80dp"
+android:hint="Naziv zadatka" />
+
+<EditText
+android:id="@+id/etOpis"
+android:layout_width="match_parent"
+android:layout_height="wrap_content"
+android:hint="Opis zadatka" />
+
+<CheckBox
+android:id="@+id/cbZavrsen"
+android:layout_width="wrap_content"
+android:layout_height="wrap_content"
+android:text="Zavrsen" />
+
+<Button
+android:id="@+id/btnDodaj"
+android:layout_width="wrap_content"
+android:layout_height="wrap_content"
+android:text="Dodaj zadatak" />
+
+<ListView
+android:id="@+id/listView"
+android:layout_width="match_parent"
+android:layout_height="300dp" />
+
+</LinearLayout>
+
+</ScrollView>
+```
+
+Nema dodataka za build.gradle ili manifest u ovom primeru - SQLite je ugradjen u Android, ne treba nikakva biblioteka.
+
+Obrati paznju - sta bi se menjalo za drugaciji zadatak: broj i tip polja u Zadatak (i odgovarajuce kolone u DatabaseHelper-u), koji View-ovi su na formi (Spinner, Switch, RadioButton...), da li treba i brisanje/izmena iz liste (metode deleteZadatak/updateZadatak su vec spremne u DatabaseHelper-u, samo ih pozoves sa odgovarajuceg dugmeta).
+
+---
+
+## PRIMER 3: Kamera + cuvanje u bazu
+
+Scenario: dugme "Slikaj" otvara kameru telefona, slika se prikazuje na ekranu, dugme "Sacuvaj" upisuje naziv i putanju do slike u lokalnu bazu, a ispod se vidi lista ranije sacuvanih naziva.
+
+STEP 1 - Model klasa:
+
+```
+package com.example.myapplication;
+
+public class Fotografija {
+
+private int id;
+private String naziv;
+private String putanja;
+
+public Fotografija() {}
+
+public Fotografija(String naziv, String putanja) {
+this.naziv = naziv;
+this.putanja = putanja;
+}
+
+public int getId() { return id; }
+public void setId(int id) { this.id = id; }
+public String getNaziv() { return naziv; }
+public void setNaziv(String naziv) { this.naziv = naziv; }
+public String getPutanja() { return putanja; }
+public void setPutanja(String putanja) { this.putanja = putanja; }
+}
+```
+
+STEP 2 - DatabaseHelper za fotografije. Ista logika kao u Primeru 2, samo cuvamo putanju do slike umesto teksta:
+
+```
+package com.example.myapplication;
+
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
+import java.util.ArrayList;
+import java.util.List;
+
+public class DatabaseHelperFoto extends SQLiteOpenHelper {
+
+private static final String DATABASE_NAME = "fotobaza.db";
+private static final int DATABASE_VERSION = 1;
+private static final String TABLE_FOTO = "fotografije";
+private static final String COLUMN_ID = "id";
+private static final String COLUMN_NAZIV = "naziv";
+private static final String COLUMN_PUTANJA = "putanja";
+
+public DatabaseHelperFoto(Context context) {
+super(context, DATABASE_NAME, null, DATABASE_VERSION);
+}
+
+@Override
+public void onCreate(SQLiteDatabase db) {
+String createTable = "CREATE TABLE " + TABLE_FOTO + " (" +
+COLUMN_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
+COLUMN_NAZIV + " TEXT, " +
+COLUMN_PUTANJA + " TEXT)";
+db.execSQL(createTable);
+}
+
+@Override
+public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+db.execSQL("DROP TABLE IF EXISTS " + TABLE_FOTO);
+onCreate(db);
+}
+
+public long insertFotografija(Fotografija f) {
+SQLiteDatabase db = this.getWritableDatabase();
+ContentValues values = new ContentValues();
+values.put(COLUMN_NAZIV, f.getNaziv());
+values.put(COLUMN_PUTANJA, f.getPutanja());
+long id = db.insert(TABLE_FOTO, null, values);
+db.close();
+return id;
+}
+
+public List<Fotografija> getAllFotografije() {
+List<Fotografija> lista = new ArrayList<>();
+SQLiteDatabase db = this.getReadableDatabase();
+Cursor cursor = db.query(TABLE_FOTO, null, null, null, null, null, null);
+if (cursor.moveToFirst()) {
+do {
+Fotografija f = new Fotografija();
+f.setId(cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_ID)));
+f.setNaziv(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_NAZIV)));
+f.setPutanja(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PUTANJA)));
+lista.add(f);
+} while (cursor.moveToNext());
+}
+cursor.close();
+db.close();
+return lista;
+}
+}
+```
+
+STEP 3 - MainActivity. dispatchTakePictureIntent() otvara kameru, createImageFile() pravi prazan fajl na telefonu u koji ce kamera upisati sliku, onActivityResult() se poziva kad se korisnik vrati iz kamera aplikacije sa rezultatom:
+
+```
+package com.example.myapplication;
+
+import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.net.Uri;
+import android.os.Bundle;
+import android.os.Environment;
+import android.provider.MediaStore;
+import android.view.View;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ImageView;
+import android.widget.ListView;
+import android.widget.Toast;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.FileProvider;
+import java.io.File;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
+
+public class MainActivity extends AppCompatActivity {
+
+private static final int REQUEST_IMAGE_CAPTURE = 1;
+private String currentPhotoPath;
+private ImageView ivSlika;
+private EditText etNaziv;
+private Button btnSlikaj, btnSacuvaj;
+private ListView listView;
+private DatabaseHelperFoto dbHelper;
+private ArrayAdapter<String> adapter;
+
+@Override
+protected void onCreate(Bundle savedInstanceState) {
+super.onCreate(savedInstanceState);
+setContentView(R.layout.activity_main);
+if (getSupportActionBar() != null) getSupportActionBar().hide();
+
+ivSlika = findViewById(R.id.ivSlika);
+etNaziv = findViewById(R.id.etNaziv);
+btnSlikaj = findViewById(R.id.btnSlikaj);
+btnSacuvaj = findViewById(R.id.btnSacuvaj);
+listView = findViewById(R.id.listView);
+
+dbHelper = new DatabaseHelperFoto(this);
+adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, new ArrayList<String>());
+listView.setAdapter(adapter);
+osveziListu();
+
+btnSlikaj.setOnClickListener(new View.OnClickListener() {
+@Override
+public void onClick(View v) {
+dispatchTakePictureIntent();
+}
+});
+
+btnSacuvaj.setOnClickListener(new View.OnClickListener() {
+@Override
+public void onClick(View v) {
+String naziv = etNaziv.getText().toString();
+if (naziv.isEmpty() || currentPhotoPath == null) {
+Toast.makeText(MainActivity.this, "Unesi naziv i slikaj prvo", Toast.LENGTH_SHORT).show();
+return;
+}
+Fotografija f = new Fotografija(naziv, currentPhotoPath);
+dbHelper.insertFotografija(f);
+etNaziv.setText("");
+osveziListu();
+}
+});
+}
+
+private File createImageFile() throws IOException {
+String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
+String imageFileName = "JPEG_" + timeStamp + "_";
+File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+File image = File.createTempFile(imageFileName, ".jpg", storageDir);
+currentPhotoPath = image.getAbsolutePath();
+return image;
+}
+
+private void dispatchTakePictureIntent() {
+Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
+File photoFile = null;
+try {
+photoFile = createImageFile();
+} catch (IOException ex) {
+Toast.makeText(this, "Greska pri kreiranju fajla", Toast.LENGTH_SHORT).show();
+}
+if (photoFile != null) {
+Uri photoURI = FileProvider.getUriForFile(this, getApplicationContext().getPackageName() + ".fileprovider", photoFile);
+takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI);
+startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
+}
+}
+}
+
+@Override
+protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+super.onActivityResult(requestCode, resultCode, data);
+if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
+Bitmap bitmap = BitmapFactory.decodeFile(currentPhotoPath);
+ivSlika.setImageBitmap(bitmap);
+}
+}
+
+private void osveziListu() {
+List<Fotografija> lista = dbHelper.getAllFotografije();
+List<String> prikaz = new ArrayList<>();
+for (Fotografija f : lista) {
+prikaz.add(f.getNaziv());
+}
+adapter.clear();
+adapter.addAll(prikaz);
+adapter.notifyDataSetChanged();
+}
+}
+```
+
+STEP 4 - activity_main.xml:
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+android:layout_width="match_parent"
+android:layout_height="match_parent">
+
+<LinearLayout
+android:layout_width="match_parent"
+android:layout_height="wrap_content"
+android:orientation="vertical"
+android:padding="16dp">
+
+<Button
+android:id="@+id/btnSlikaj"
+android:layout_width="wrap_content"
+android:layout_height="wrap_content"
+android:layout_marginTop="80dp"
+android:text="Slikaj" />
+
+<ImageView
+android:id="@+id/ivSlika"
+android:layout_width="match_parent"
+android:layout_height="200dp"
+android:layout_marginTop="16dp"
+android:scaleType="centerCrop" />
+
+<EditText
+android:id="@+id/etNaziv"
+android:layout_width="match_parent"
+android:layout_height="wrap_content"
+android:hint="Naziv fotografije" />
+
+<Button
+android:id="@+id/btnSacuvaj"
+android:layout_width="wrap_content"
+android:layout_height="wrap_content"
+android:text="Sacuvaj" />
+
+<ListView
+android:id="@+id/listView"
+android:layout_width="match_parent"
+android:layout_height="200dp" />
+
+</LinearLayout>
+
+</ScrollView>
+```
+
+STEP 5 - res/xml/file_paths.xml. Ovo je NOVI fajl (desni klik na res > New > Android Resource File > ime "file_paths", Resource type "XML", pa u njemu ovo), potreban je FileProvider-u da zna gde sme da deli fajlove:
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+<external-files-path name="my_images" path="Pictures" />
+</paths>
+```
+
+STEP 6 - Dodatak u AndroidManifest.xml. <queries> ide unutar <manifest> tag-a (iznad <application>), <provider> ide UNUTAR <application> tag-a, posle </activity>:
+
+```
+<queries>
+<intent>
+<action android:name="android.media.action.IMAGE_CAPTURE" />
+</intent>
+</queries>
+```
+
+```
+<provider
+android:name="androidx.core.content.FileProvider"
+android:authorities="${applicationId}.fileprovider"
+android:exported="false"
+android:grantUriPermissions="true">
+<meta-data
+android:name="android.support.FILE_PROVIDER_PATHS"
+android:resource="@xml/file_paths" />
+</provider>
+```
+
+Nema dodataka za build.gradle u ovom primeru - FileProvider dolazi vec sa androidx.core bibliotekom koja je uobicajeno vec ukljucena preko appcompat-a.
+
+Obrati paznju - sta bi se menjalo za drugaciji zadatak: da li slika ide u ImageView na ekranu ili se cuva samo putanja, da li treba i galerija (ACTION_PICK) umesto kamere, da li authority u kodu (getApplicationContext().getPackageName() + ".fileprovider") mora tacno da se poklopi sa authorities u manifestu.
+
+---
+
+## Obrati paznju na (opste za sva tri primera)
+
+Retrofit poziv je asinhron - rezultat NE mozes da koristis odmah posle poziva enqueue(), samo unutar onResponse() callback-a, jer odgovor sa servera stize kasnije.
+
+ListView unutar ScrollView-a mora imati fiksnu visinu (npr. 300dp), nikad wrap_content ili match_parent, inace se ne prikazuje ispravno.
+
+RecyclerView se nikad ne stavlja unutar ScrollView-a - vec sam skroluje.
+
+findViewById ID mora TACNO da se poklopi sa android:id u XML-u (i sa velikim/malim slovima).
+
+Ako menjas ime paketa u novom projektu, authority za FileProvider (u manifestu i u kodu) mora da ostane isti string na oba mesta.
+
+Posle svakog dodavanja linije u build.gradle, obavezno klikni "Sync Now" pre nego sto pokusas da kompajliras.
