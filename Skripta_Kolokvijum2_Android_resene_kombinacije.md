@@ -5,7 +5,7 @@ Ovo je skripta za brzo učenje kombinacija zadataka. Rađena je kao šablon koji
 Paket u primerima je:
 
 ```
-package com.example.kolokvijum;
+package com.example.kolokvijum2;
 ```
 
 Ako je kod tvog projekta drugačiji, promeni prvu liniju u svakoj Java klasi.
@@ -31,7 +31,7 @@ implementation 'com.google.code.gson:gson:2.8.9'
 
   <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.kolokvijum">
+    package="com.example.kolokvijum2">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
