@@ -5,7 +5,7 @@ Ovo je skripta za brzo učenje kombinacija zadataka. Rađena je kao šablon koji
 Paket u primerima je:
 
 ```
-package com.example.kolokvijum2;
+package com.example.kolokvijum;
 ```
 
 Ako je kod tvog projekta drugačiji, promeni prvu liniju u svakoj Java klasi.
