@@ -1,0 +1,394 @@
+app
+├── manifests
+│   └── AndroidManifest.xml
+├── java
+│   └── com.example.kolokvijum2
+│       ├── MainActivity.java        (spaja sve: senzor, kamera, mreza, baza)
+│       ├── Role.java                (model: id, name, description)
+│       ├── ApiService.java          (Retrofit interfejs: @GET("roles"))
+│       ├── ClientUtils.java         (Retrofit instanca, baseUrl)
+│       └── SQLiteHelper.java        (SQLite baza za uloge)
+└── res
+    ├── layout
+    │   └── activity_main.xml        (2 checkboxa, Button "Slikaj", ImageView, 2 TextView-a)
+    ├── drawable
+    ├── mipmap
+    └── values
+        └── strings.xml, colors.xml, themes.xml
+
+Gradle Scripts
+└── build.gradle (Module :app)       (retrofit, gson, converter-gson, play-services-location)
+
+
+1. AndroidManifest
+
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Kolokvijum2">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+    </application>
+
+</manifest>
+
+2. build gradle (Module: app) — dependencies
+Prelepi ovo u postojeći dependencies { } blok:
+
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+
+    implementation 'com.google.code.gson:gson:2.8.7'
+    implementation 'com.squareup.retrofit2:retrofit:2.3.0'
+    implementation 'com.squareup.retrofit2:converter-gson:2.3.0'
+
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+}
+
+
+
+3. res/xml/file_paths.xml (ako nemaš xml folder: desni klik na res → New → Android Resource Directory → tip xml, pa u njemu napravi file_paths.xml).
+
+xml
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <files-path name="files" path="." />
+</paths>
+
+
+
+4. activity_main.xml
+
+xml
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/tvProximity"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Proximity:" />
+
+    <TextView
+        android:id="@+id/tvSecond"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Drugi TextView"
+        android:paddingTop="8dp" />
+
+    <CheckBox
+        android:id="@+id/checkBox1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Checkbox 1" />
+
+    <CheckBox
+        android:id="@+id/checkBox2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Checkbox 2" />
+
+    <Button
+        android:id="@+id/button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Slikaj" />
+
+    <ImageView
+        android:id="@+id/imageView"
+        android:layout_width="200dp"
+        android:layout_height="200dp"
+        android:layout_marginTop="12dp"
+        android:background="#DDDDDD" />
+
+</LinearLayout>
+
+
+
+
+5. Role.java (model)
+
+java
+package com.example.kolokvijum2;
+
+public class Role {
+    public int id;
+    public String name;
+    public String description;
+}
+ApiService.java
+java
+package com.example.kolokvijum2;
+
+import java.util.List;
+import retrofit2.Call;
+import retrofit2.http.GET;
+
+public interface ApiService {
+    @GET("roles")
+    Call<List<Role>> getRoles();
+}
+
+
+
+6. ClientUtils.java
+
+java
+package com.example.kolokvijum2;
+
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
+
+public class ClientUtils {
+    public static final String SERVICE_API_PATH = "https://dummy-json.free.beeceptor.com/";
+
+    public static Retrofit retrofit = new Retrofit.Builder()
+            .baseUrl(SERVICE_API_PATH)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build();
+
+    public static ApiService apiService = retrofit.create(ApiService.class);
+}
+
+
+7. SQLiteHelper.java
+
+java
+package com.example.kolokvijum2;
+
+import android.content.Context;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
+
+public class SQLiteHelper extends SQLiteOpenHelper {
+
+    public static final String TABLE_ROLES = "ROLES";
+    public static final String COLUMN_ID = "id";
+    public static final String COLUMN_NAME = "name";
+    public static final String COLUMN_DESCRIPTION = "description";
+
+    private static final String DATABASE_NAME = "uloge.db";
+    private static final int DATABASE_VERSION = 1;
+
+    private static final String DB_CREATE = "create table "
+            + TABLE_ROLES + "("
+            + COLUMN_ID + " integer primary key, "
+            + COLUMN_NAME + " text, "
+            + COLUMN_DESCRIPTION + " text"
+            + ")";
+
+    public SQLiteHelper(Context context) {
+        super(context, DATABASE_NAME, null, DATABASE_VERSION);
+    }
+
+    @Override
+    public void onCreate(SQLiteDatabase db) {
+        db.execSQL(DB_CREATE);
+    }
+
+    @Override
+    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_ROLES);
+        onCreate(db);
+    }
+}
+
+
+
+8. MainActivity.java
+
+java
+package com.example.kolokvijum2;
+
+import android.content.ContentValues;
+import android.content.Intent;
+import android.database.sqlite.SQLiteDatabase;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
+import android.net.Uri;
+import android.os.Bundle;
+import android.provider.MediaStore;
+import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.ImageView;
+import android.widget.TextView;
+import android.widget.Toast;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.FileProvider;
+
+import java.io.File;
+import java.util.List;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+
+public class MainActivity extends AppCompatActivity implements SensorEventListener {
+
+    private TextView tvProximity, tvSecond;
+    private Button button;
+    private ImageView imageView;
+    private CheckBox checkBox1, checkBox2;
+
+    private SensorManager sensorManager;
+    private Sensor proximitySensor;
+
+    private SQLiteHelper helper;
+
+    private ActivityResultLauncher<Intent> kameraLauncher;
+    private File photoFile;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        tvProximity = findViewById(R.id.tvProximity);
+        tvSecond = findViewById(R.id.tvSecond);
+        button = findViewById(R.id.button);
+        imageView = findViewById(R.id.imageView);
+        checkBox1 = findViewById(R.id.checkBox1);
+        checkBox2 = findViewById(R.id.checkBox2);
+
+        helper = new SQLiteHelper(this);
+
+        
+        sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+        proximitySensor = sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY);
+
+        
+        kameraLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == RESULT_OK && photoFile != null) {
+                        
+                        Bitmap bmp = BitmapFactory.decodeFile(photoFile.getAbsolutePath());
+                        imageView.setImageBitmap(bmp);
+                    }
+                });
+
+      
+        button.setOnClickListener(v -> pokreniKameru());
+
+        
+        checkBox1.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) {
+                fetchRoles();
+            }
+        });
+    }
+
+    
+    private void pokreniKameru() {
+        photoFile = new File(getFilesDir(), "slika.jpg");
+        Uri photoUri = FileProvider.getUriForFile(this,
+                getPackageName() + ".fileprovider", photoFile);
+
+        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        intent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
+        intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        kameraLauncher.launch(intent);
+    }
+
+    
+    private void fetchRoles() {
+        ClientUtils.apiService.getRoles().enqueue(new Callback<List<Role>>() {
+            @Override
+            public void onResponse(Call<List<Role>> call, Response<List<Role>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    SQLiteDatabase db = helper.getWritableDatabase();
+                    db.delete(SQLiteHelper.TABLE_ROLES, null, null); // ocisti da nema duplikata
+                    int sacuvano = 0;
+                    for (Role r : response.body()) {
+                        if (r.id % 2 == 0) {   // samo paran ID
+                            ContentValues values = new ContentValues();
+                            values.put(SQLiteHelper.COLUMN_ID, r.id);
+                            values.put(SQLiteHelper.COLUMN_NAME, r.name);
+                            values.put(SQLiteHelper.COLUMN_DESCRIPTION, r.description);
+                            db.insert(SQLiteHelper.TABLE_ROLES, null, values);
+                            sacuvano++;
+                        }
+                    }
+                    db.close();
+                    Toast.makeText(MainActivity.this, "Sacuvano " + sacuvano + " uloga", Toast.LENGTH_SHORT).show();
+                }
+            }
+            @Override
+            public void onFailure(Call<List<Role>> call, Throwable t) {
+                Toast.makeText(MainActivity.this, "Greska: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        if (event.sensor.getType() == Sensor.TYPE_PROXIMITY) {
+            float vrednost = event.values[0];
+            tvProximity.setText("Proximity: " + vrednost);
+
+            float prag = 3;
+            if (vrednost > prag) {   // IZNAD praga -> Daleko!
+                Toast.makeText(this, "Daleko!", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {}
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        sensorManager.registerListener(this, proximitySensor, SensorManager.SENSOR_DELAY_NORMAL);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        sensorManager.unregisterListener(this);
+    }
+}
+
+
